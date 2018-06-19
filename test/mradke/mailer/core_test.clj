@@ -1,6 +1,6 @@
-(ns clojurewerkz.mailer.core-test
+(ns mradke.mailer.core-test
   (:use clojure.test
-        clojurewerkz.mailer.core))
+        mradke.mailer.core))
 
 (delivery-mode! :test)
 
@@ -14,7 +14,7 @@
   (is (thrown? IllegalArgumentException
                (with-delivery-mode :magic-fairies
                  (deliver-email {:from "joe@giove.local" :to "Tom <tom@giove.local>"}
-                                "templates/hello.mustache" {:name "Tom"})))))
+                                "templates/hello.txt" {:name "Tom"})))))
 
 
 ;;
@@ -22,10 +22,10 @@
 ;;
 
 (deftest test-rendering-of-resource-template
-  (is (= "Hello, Joe!" (render "templates/hello.mustache" {:name "Joe"}))))
+  (is (= "Hello, Joe!" (render "templates/hello.txt" {:name "Joe"}))))
 
 (deftest test-rendering-of-resource-template-with-conditions
-  (is (= "Hello, Joe!\n" (render "templates/conditional_hello.mustache" {:person {:name "Joe"}}))))
+  (is (= "\nHello, Joe!\n" (render "templates/conditional_hello.txt" {:person {:name "Joe"}}))))
 
 
 
@@ -34,7 +34,7 @@
 ;;
 
 (deftest test-building-messages
-  (let [d        { :cc ["baz@bar.dom" "Quux <quux@bar.dom>"] }
+  (let [d        { :cc ["baz@bar.dom" "Quux <quux@bar.dom>"]}
         expected-hdr {:from "fee@bar.dom"
                       :to "Foo Bar <foo@bar.dom>"
                       :cc ["baz@bar.dom" "Quux <quux@bar.dom>"]
@@ -46,7 +46,7 @@
         (let [email (build-email {:from    "fee@bar.dom"
                                   :to      "Foo Bar <foo@bar.dom>"
                                   :subject "Hello"}
-                                 "templates/hello.mustache" {:name "Joe"}
+                                 "templates/hello.txt" {:name "Joe"}
                                  :text/plain)
               content (:content (first (:body email)))
               type (:type (first (:body email)))]
@@ -58,12 +58,12 @@
 
 
 (deftest test-content-type-keyword
-  (let [email (build-email {} "templates/hello.mustache" {} :text/html)
+  (let [email (build-email {} "templates/hello.txt" {} :text/html)
         type (:type (first (:body email)))]
       (is (= type "text/html"))))
 
 (deftest test-content-type-string
-  (let [email (build-email {} "templates/hello.mustache" {} "text/html")
+  (let [email (build-email {} "templates/hello.txt" {} "text/html")
         type (:type (first (:body email)))]
     (is (= type "text/html"))))
 
@@ -75,18 +75,18 @@
   (is (= 0 (count @deliveries)))
   (with-delivery-mode :test
     (deliver-email {:from "joe@giove.local" :to "Tom <tom@giove.local>"}
-                   "templates/hello.mustache" {:name "Tom"})
+                   "templates/hello.txt" {:name "Tom"})
     (deliver-email {:from "Tom <tom@giove.local>" :to "joe@giove.local"}
-                   "templates/hello.mustache" {:name "Joe"}))
+                   "templates/hello.txt" {:name "Joe"}))
   (is (= 2 (count @deliveries))))
 
 (deftest test-reset-deliveries
   (is (= 0 (count @deliveries)))
   (with-delivery-mode :test
     (deliver-email {:from "joe@giove.local" :to "Tom <tom@giove.local>"}
-                   "templates/hello.mustache" {:name "Tom"})
+                   "templates/hello.txt" {:name "Tom"})
     (deliver-email {:from "Tom <tom@giove.local>" :to "joe@giove.local"}
-                   "templates/hello.mustache" {:name "Joe"}))
+                   "templates/hello.txt" {:name "Joe"}))
   (is (= 2 (count @deliveries)))
   (reset-deliveries!)
   (is (= 0 (count @deliveries))))

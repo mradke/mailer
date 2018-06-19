@@ -1,0 +1,3 @@
+{% if person %}
+Hello, {{person.name}}!
+{% endif %}

@@ -7,11 +7,11 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns clojurewerkz.mailer.core
+(ns mradke.mailer.core
   "Key library functionality: build and deliver email, render templates, et cetera."
-  (:require [postal.message   :as msg]
-            [clojure.java.io  :as io]
-            [stencil.core     :as stencil]
+  (:require [postal.message :as msg]
+            [clojure.java.io :as io]
+            [selmer.parser :as selmer]
             [postal.core :refer [send-message]]))
 
 ;;
@@ -19,17 +19,17 @@
 ;;
 
 (def ^{:doc "Accumulates mail messages delivered with the :test delivery mode."}
-  deliveries (atom []))
+ deliveries (atom []))
 
 (def ^{:dynamic true
-       :doc "Delivery mode to use. One of :smtp, :test, :sendmail. With the :test
+       :doc     "Delivery mode to use. One of :smtp, :test, :sendmail. With the :test
              delivery mode, real deliveries won't happen. Instead, they will be accumulated to the
              deliveries collection."} *delivery-mode* :smtp)
 (def ^{:dynamic true
-       :doc "Settings to use for email delivery (e.g. SMTP configuration)"} *delivery-settings*)
+       :doc     "Settings to use for email delivery (e.g. SMTP configuration)"} *delivery-settings*)
 
 (def ^{:dynamic true
-       :doc "Default email message parameters (useful for setting From and CC headers, for example)"} *message-defaults* {})
+       :doc     "Default email message parameters (useful for setting From and CC headers, for example)"} *message-defaults* {})
 
 (def delivery-modes (atom {}))
 
@@ -91,15 +91,15 @@
 (defn render
   "Renders a template from a resource (so, it has to be on the classpath)"
   ([^String template]
-     (check-not-nil! template "Template resource name cannot be nil!")
-     (render template {}))
+   (check-not-nil! template "Template resource name cannot be nil!")
+   (render template {}))
   ([^String template data]
-     (check-not-nil! template "Template resource name cannot be nil!")
-     (try
-       (stencil/render-file template data)
-       (catch Exception e
-         (throw (RuntimeException. (str "Failed rendering email with template: '" template "', template might not exist.")
-                                   e))))))
+   (check-not-nil! template "Template resource name cannot be nil!")
+   (try
+     (selmer/render-file template data)
+     (catch Exception e
+       (throw (RuntimeException. (str "Failed rendering email with template: '" template "', template might not exist.")
+                                 e))))))
 
 (defn- mime-type-str
   [content-type]
@@ -110,13 +110,13 @@
 
 (extend-protocol ContentType
   clojure.lang.Keyword
-    (get-content-type
-      [k]
-      (mime-type-str k))
+  (get-content-type
+    [k]
+    (mime-type-str k))
   java.lang.String
-    (get-content-type
-      [s]
-      s))
+  (get-content-type
+    [s]
+    s))
 
 (defn deep-merge-into
   "Recursively merge maps applying into when there's a non-map. based on conjure.contrib/map_utils deep-merge-with"
@@ -132,12 +132,12 @@
   "Helper which renders contents and assigns content-type."
   [template data content-type]
   {:content (render template data)
-   :type (get-content-type content-type)})
+   :type    (get-content-type content-type)})
 
 (defn build-email
   "Builds up a mail message (returned as an immutable map). Body is rendered from a given template."
   [m ^String template data content-type & more-data]
-  (let [contents (map (partial apply get-content-with-type )
+  (let [contents (map (partial apply get-content-with-type)
                       (partition-all 3 (concat [template data content-type] more-data)))]
     (deep-merge-into *message-defaults* m
                      {:body (if (empty? more-data)
@@ -148,25 +148,25 @@
 (defn deliver-email
   "Delivers a mail message using delivery mode specified by the *delivery-mode* var. Body is rendered from a given template."
   ([m ^String template data]
-     (deliver-email m template data :text/plain))
+   (deliver-email m template data :text/plain))
   ([m ^String template data content-type & more-data]
-     (io!
-      (if-let [f (get @delivery-modes *delivery-mode*)]
-        (apply f m template data content-type more-data)
-        (throw (IllegalArgumentException. (format  "%s delivery mode implementation is not registered. Possibly you misspelled %s?" *delivery-mode* *delivery-mode*)))))))
+   (io!
+     (if-let [f (get @delivery-modes *delivery-mode*)]
+       (apply f m template data content-type more-data)
+       (throw (IllegalArgumentException. (format "%s delivery mode implementation is not registered. Possibly you misspelled %s?" *delivery-mode* *delivery-mode*)))))))
 
 
 (defn reset-deliveries!
   "Resets test mode deliveries. Typically this is performed before and after each test."
   ([]
-     (reset! deliveries []))
+   (reset! deliveries []))
   ([f]
-     (reset-deliveries!)
-     (f)
-     (reset-deliveries!)))
+   (reset-deliveries!)
+   (f)
+   (reset-deliveries!)))
 
 
 ;; register core delivery methods
-(register-delivery-mode :test     deliver-in-test-mode)
-(register-delivery-mode :smtp     deliver-with-smtp)
+(register-delivery-mode :test deliver-in-test-mode)
+(register-delivery-mode :smtp deliver-with-smtp)
 (register-delivery-mode :sendmail deliver-with-sendmail)
